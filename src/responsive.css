@@ -1,0 +1,71 @@
+/* 
+  Mobile Responsiveness Fixes 
+  Includes fixes for grid layouts, overlaps, and tight spacing.
+*/
+
+@media (max-width: 768px) {
+  /* Dashboard: 1 column grid for status cards instead of 2 */
+  .status-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Dashboard: 1 column for 2-column layouts */
+  .dashboard-columns {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem;
+  }
+  
+  /* Prevent Chatbot FAB from covering critical bottom content */
+  .main-content {
+    padding-bottom: 90px !important;
+  }
+
+  /* Dashboard: NPK Labels fix (add space between name and value) */
+  .npk-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .npk-item:last-child {
+    border-bottom: none;
+  }
+  
+  /* Weather Metrics fix */
+  .weather-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  /* Allow horizontal scrolling for 7-day forecasts so they aren't truncated */
+  .forecast-grid, .forecast-scroll {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    gap: 1rem;
+    scrollbar-width: none; /* Firefox */
+  }
+  .forecast-grid::-webkit-scrollbar, .forecast-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  .forecast-card {
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  /* Market: Fix Badge Clipping */
+  .mandi-badge {
+    right: 0 !important;
+    top: -10px !important;
+  }
+
+  /* Crop Tracking: Add space to Milestones */
+  .tracking-milestone {
+    margin-bottom: 1rem;
+  }
+}

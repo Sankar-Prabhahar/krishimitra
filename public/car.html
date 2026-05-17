@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krishi Mitra | AgroBuddy Commander</title>
+
+    <!-- Fonts & Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --color-primary: #2E7D32;
+            --color-primary-dark: #1B5E20;
+            --color-primary-light: #4CAF50;
+            --color-secondary: #795548;
+            --color-accent: #0288D1;
+            --color-background: #F8FAF8;
+            --color-surface: #FFFFFF;
+            --color-surface-alt: #F0F4F0;
+            --color-text-main: #1A1A1A;
+            --color-text-secondary: #5A5A5A;
+            --color-border: #E8ECE8;
+            --color-success: #2E7D32;
+            --color-warning: #F57C00;
+            --color-error: #D32F2F;
+            --color-info: #0288D1;
+            --font-family: 'Inter', system-ui, sans-serif;
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            
+            /* Sensor Colors */
+            --c-temp: var(--color-warning);
+            --c-hum: var(--color-info);
+            --c-tds: var(--color-accent);
+            --c-soil: var(--color-primary);
+
+            /* 3D Widget Theme */
+            --3d-bg: #0f172a;
+            --3d-text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, #F8FAF8 0%, #E8F5E9 100%);
+            color: var(--color-text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* --- 1. HEADER --- */
+        .header {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            height: 70px;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 0 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.35rem;
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .logo-text {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .back-btn:hover {
+            color: var(--color-primary);
+        }
+
+        /* --- 2. LOGIN OVERLAY --- */
+        #login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+
+        .login-box {
+            background: var(--color-surface);
+            padding: 2.5rem;
+            border-radius: var(--radius-xl);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .login-box .icon-wrapper {
+            width: 60px;
+            height: 60px;
+            background: var(--color-surface-alt);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            color: var(--color-primary);
+        }
+
+        .login-box h1 {
+            margin-bottom: 0.5rem;
+            font-size: 1.75rem;
+        }
+
+        .login-box p {
+            color: var(--color-text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            margin-bottom: 1rem;
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
+
+        .login-box input:focus {
+            border-color: var(--color-primary);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(46, 125, 50, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+        }
+
+        /* --- 3. MAIN DASHBOARD --- */
+        .main-content {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem 1.5rem;
+            display: none; /* Shown after login */
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .dash-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .status-badge {
+            background: var(--color-surface-alt);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid var(--color-border);
+        }
+
+        .status-badge.online {
+            background: #E8F5E9;
+            color: var(--color-success);
+            border-color: #C8E6C9;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .online .status-dot {
+            background: var(--color-success);
+            box-shadow: 0 0 8px var(--color-success);
+        }
+
+        /* Controls Section */
+        .section-title {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .actuator-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .actuator-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .actuator-label {
+            font-weight: 600;
+            color: var(--color-text-main);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .control-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .btn-start {
+            background: #E8F5E9;
+            color: var(--color-success);
+            border-color: #C8E6C9;
+        }
+
+        .btn-start:hover {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-stop {
+            background: #FFEBEE;
+            color: var(--color-error);
+            border-color: #FFCDD2;
+        }
+
+        .btn-stop:hover {
+            background: var(--color-error);
+            color: white;
+        }
+
+        /* Sensors Grid */
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .sensor-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin-bottom: 1rem;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: var(--color-surface-alt);
+            stroke-width: 10;
+        }
+
+        .gauge-val {
+            fill: none;
+            stroke-width: 10;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+
+        .gauge-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .val-num {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--color-text-main);
+        }
+
+        .val-unit {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            font-weight: 600;
+        }
+
+        .sensor-label {
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+
+        /* 3D Widget Container */
+        .telemetry-section {
+            margin-top: 2rem;
+        }
+
+        #widget-3d {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 320px;
+            height: 220px;
+            background: var(--3d-bg);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            z-index: 1000;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #widget-3d:hover {
+            transform: scale(1.05);
+            border-color: var(--color-primary);
+        }
+
+        #widget-3d.expanded {
+            width: 100vw;
+            height: 100vh;
+            bottom: 0;
+            right: 0;
+            border-radius: 0;
+            border: none;
+            z-index: 3000;
+        }
+
+        .hud-overlay {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            right: 1.5rem;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .telemetry-row {
+            margin-bottom: 0.75rem;
+        }
+
+        .t-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #fff;
+            margin-bottom: 0.35rem;
+            font-weight: 600;
+        }
+
+        .t-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .t-bar-fill {
+            height: 100%;
+            background: var(--color-primary-light);
+            width: 0%;
+            transition: width 0.1s;
+            position: relative;
+        }
+
+        /* --- 4. FOOTER --- */
+        .footer {
+            background: linear-gradient(135deg, #3E2723 0%, #5D4037 100%);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 2rem 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: auto;
+        }
+
+        @media (max-width: 768px) {
+            #widget-3d {
+                width: 100%;
+                right: 0;
+                bottom: 0;
+                border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            }
+            .main-content {
+                padding-bottom: 260px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">
+                <i data-lucide="sprout"></i>
+                <span class="logo-text">Krishi Mitra</span>
+            </a>
+            <a href="/" class="back-btn">
+                <i data-lucide="arrow-left"></i>
+                <span>Back to App</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="icon-wrapper">
+                <i data-lucide="cpu" size="32"></i>
+            </div>
+            <h1>AgroBuddy</h1>
+            <p>Connect to your Raspberry Pi control system</p>
+            <input type="text" id="sys-ip" placeholder="Enter IP Address (e.g. 192.168.1.15)" value="192.168.137.225">
+            <button class="btn-primary" onclick="initSystem()">Connect System</button>
+            <div id="conn-status" style="margin-top:1rem; font-size:0.875rem; color:var(--color-error);"></div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <main id="dashboard" class="main-content">
+        <div class="dash-header">
+            <div>
+                <h1>AgroBuddy Commander</h1>
+                <p style="color: var(--color-text-secondary);">Real-time telemetry and hardware control</p>
+            </div>
+            <div id="socket-badge" class="status-badge">
+                <div class="status-dot"></div>
+                <span id="socket-text">System Offline</span>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div>
+            <h2 class="section-title"><i data-lucide="sliders"></i> System Controls</h2>
+            <div class="controls-grid">
+                <div class="card">
+                    <div class="actuator-group">
+                        <div class="actuator-header">
+                            <span class="actuator-label">Primary Actuator</span>
+                            <i data-lucide="power" size="18" style="color: var(--color-text-secondary);"></i>
+                        </div>
+                        <div class="btn-row">
+                            <button class="control-btn btn-start" onclick="sendSocketCmd(1, 'OFF')">START</button>
+                            <button class="control-btn btn-stop" onclick="sendSocketCmd(1, 'ON')">STOP</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="actuator-group">
+                        <div class="actuator-header">
+                            <span class="actuator-label">Secondary Actuator</span>
+                            <i data-lucide="settings" size="18" style="color: var(--color-text-secondary);"></i>
+                        </div>
+                        <div class="btn-row">
+                            <button class="control-btn btn-start" onclick="sendSocketCmd(2, 'OFF')">START</button>
+                            <button class="control-btn btn-stop" onclick="sendSocketCmd(2, 'ON')">STOP</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensors Section -->
+        <div>
+            <h2 class="section-title"><i data-lucide="gauge"></i> Sensor Data</h2>
+            <div class="sensors-grid">
+                <!-- Temp -->
+                <div class="card sensor-card">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg">
+                            <circle cx="60" cy="60" r="50" class="gauge-bg" />
+                            <circle cx="60" cy="60" r="50" class="gauge-val" id="g-temp" style="stroke: var(--c-temp);" />
+                        </svg>
+                        <div class="gauge-content">
+                            <span class="val-num" id="v-temp">--</span>
+                            <span class="val-unit">°C</span>
+                        </div>
+                    </div>
+                    <span class="sensor-label">Temperature</span>
+                </div>
+                <!-- Humidity -->
+                <div class="card sensor-card">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg">
+                            <circle cx="60" cy="60" r="50" class="gauge-bg" />
+                            <circle cx="60" cy="60" r="50" class="gauge-val" id="g-hum" style="stroke: var(--c-hum);" />
+                        </svg>
+                        <div class="gauge-content">
+                            <span class="val-num" id="v-hum">--</span>
+                            <span class="val-unit">%</span>
+                        </div>
+                    </div>
+                    <span class="sensor-label">Humidity</span>
+                </div>
+                <!-- TDS -->
+                <div class="card sensor-card">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg">
+                            <circle cx="60" cy="60" r="50" class="gauge-bg" />
+                            <circle cx="60" cy="60" r="50" class="gauge-val" id="g-tds" style="stroke: var(--c-tds);" />
+                        </svg>
+                        <div class="gauge-content">
+                            <span class="val-num" id="v-tds">--</span>
+                            <span class="val-unit">ppm</span>
+                        </div>
+                    </div>
+                    <span class="sensor-label">Water TDS</span>
+                </div>
+                <!-- Soil -->
+                <div class="card sensor-card">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg">
+                            <circle cx="60" cy="60" r="50" class="gauge-bg" />
+                            <circle cx="60" cy="60" r="50" class="gauge-val" id="g-s1" style="stroke: var(--c-soil);" />
+                        </svg>
+                        <div class="gauge-content">
+                            <span class="val-num" id="v-s1">--</span>
+                            <span class="val-unit">%</span>
+                        </div>
+                    </div>
+                    <span class="sensor-label">Soil Moisture</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 3D PREVIEW WIDGET -->
+    <div id="widget-3d" onclick="toggleExpand(this)">
+        <div class="hud-overlay">
+            <div class="hud-header">
+                <span>Live Orientation</span>
+                <span>Click to Expand</span>
+            </div>
+            <!-- Mini Bars -->
+            <div class="telemetry-row">
+                <div class="t-label"><span>Roll</span><span id="txt-r">0°</span></div>
+                <div class="t-bar-bg">
+                    <div id="bar-r" class="t-bar-fill"></div>
+                </div>
+            </div>
+            <div class="telemetry-row">
+                <div class="t-label"><span>Pitch</span><span id="txt-p">0°</span></div>
+                <div class="t-bar-bg">
+                    <div id="bar-p" class="t-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+        <div id="canvas-container" style="width: 100%; height: 100%;"></div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2024 Krishi Mitra. Empowering Farmers with AI & IoT.</p>
+    </footer>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        let SYS_IP = "";
+        let socket = null;
+        let fetchInterval = null;
+        const CIRCUMFERENCE = 2 * Math.PI * 50;
+
+        // --- SYSTEM INIT ---
+        function initSystem() {
+            const ipInput = document.getElementById('sys-ip').value;
+            if (!ipInput) return;
+            SYS_IP = ipInput;
+
+            // UI Transition
+            const login = document.getElementById('login-overlay');
+            login.style.opacity = 0;
+            setTimeout(() => {
+                login.style.display = 'none';
+                document.getElementById('dashboard').style.display = 'flex';
+
+                // Start both systems
+                initSocketSystem(SYS_IP);
+                init3DSystem(SYS_IP);
+            }, 500);
+        }
+
+        // --- 1. SOCKET.IO (SENSORS) ---
+        function initSocketSystem(ip) {
+            socket = io(`http://${ip}:2500`, { reconnectionAttempts: 3, timeout: 2000 });
+
+            socket.on('connect', () => {
+                const badge = document.getElementById('socket-badge');
+                badge.classList.add('online');
+                document.getElementById('socket-text').innerText = "System Online";
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('socket-badge').classList.remove('online');
+                document.getElementById('socket-text').innerText = "System Offline";
+            });
+
+            socket.on('sensor_update', (data) => {
+                updateGauge('g-temp', 'v-temp', data.temperature, 50);
+                updateGauge('g-hum', 'v-hum', data.humidity, 100);
+                updateGauge('g-tds', 'v-tds', data.tds, 500);
+                updateGauge('g-s1', 'v-s1', data.soil1, 100);
+            });
+        }
+
+        function sendSocketCmd(id, action) {
+            if (socket && socket.connected) socket.emit('control_servo', { id, action });
+        }
+
+        function updateGauge(circleId, textId, value, maxVal) {
+            const circle = document.getElementById(circleId);
+            document.getElementById(textId).innerText = value;
+            let pct = Math.min(100, Math.max(0, (value / maxVal) * 100));
+            circle.style.strokeDashoffset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+        }
+
+        // --- 2. THREE.JS & TELEMETRY (3D) ---
+        let scene, camera, renderer, carGroup;
+        let targetR = 0, targetP = 0, targetY = 0;
+        let currR = 0, currP = 0, currY = 0;
+
+        function init3DSystem(ip) {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a); 
+
+            camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 100);
+            camera.position.set(4, 3, 5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(container.offsetWidth, container.offsetHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            const grid = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+            scene.add(grid);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+
+            carGroup = new THREE.Group();
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshPhysicalMaterial({ color: 0x2E7D32 }));
+            chassis.position.y = 0.5;
+            carGroup.add(chassis);
+
+            const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            wheelGeo.rotateX(Math.PI / 2);
+            [[-0.8, 0.6], [0.8, 0.6], [-0.8, -0.6], [0.8, -0.6]].forEach(pos => {
+                const w = new THREE.Mesh(wheelGeo, new THREE.MeshStandardMaterial({ color: 0x334155 }));
+                w.position.set(pos[0], 0.3, pos[1]);
+                carGroup.add(w);
+            });
+            scene.add(carGroup);
+
+            animate();
+
+            if (fetchInterval) clearInterval(fetchInterval);
+            fetchInterval = setInterval(() => fetchTelemetry(ip), 50);
+
+            new ResizeObserver(() => {
+                const w = container.offsetWidth;
+                const h = container.offsetHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            }).observe(container);
+        }
+
+        async function fetchTelemetry(ip) {
+            try {
+                const res = await fetch(`http://${ip}:2000/data`);
+                if (res.ok) {
+                    const data = await res.json();
+                    targetR = THREE.MathUtils.degToRad(-data.roll);
+                    targetP = THREE.MathUtils.degToRad(-data.pitch);
+                    targetY = THREE.MathUtils.degToRad(-data.yaw);
+                    updateHUD(data.roll, data.pitch);
+                }
+            } catch (e) {}
+        }
+
+        function updateHUD(r, p) {
+            document.getElementById('txt-r').innerText = r.toFixed(0) + "°";
+            document.getElementById('txt-p').innerText = p.toFixed(0) + "°";
+
+            const rPct = Math.max(-50, Math.min(50, (r / 45) * 50));
+            const pPct = Math.max(-50, Math.min(50, (p / 45) * 50));
+
+            const rb = document.getElementById('bar-r');
+            rb.style.left = (r >= 0) ? "50%" : (50 + rPct) + "%";
+            rb.style.width = Math.abs(rPct) + "%";
+
+            const pb = document.getElementById('bar-p');
+            pb.style.left = (p >= 0) ? "50%" : (50 + pPct) + "%";
+            pb.style.width = Math.abs(pPct) + "%";
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            currR += (targetR - currR) * 0.1;
+            currP += (targetP - currP) * 0.1;
+            currY += (targetY - currY) * 0.1;
+            carGroup.rotation.set(currP, currY, currR, 'YXZ');
+            renderer.render(scene, camera);
+        }
+
+        function toggleExpand(el) {
+            el.classList.toggle('expanded');
+        }
+    </script>
+</body>
+
+</html>

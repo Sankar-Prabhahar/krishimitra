@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroBuddy Unified Commander</title>
+    
+    <!-- Fonts & Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <style>
+        :root {
+            /* Dashboard Theme (Light) */
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --accent: #3b82f6;
+            
+            /* Sensor Colors */
+            --c-temp: #f59e0b; 
+            --c-hum: #3b82f6;  
+            --c-tds: #06b6d4;  
+            --c-soil: #10b981; 
+
+            /* 3D Widget Theme (Dark) */
+            --3d-bg: #0f172a;
+            --3d-glass: rgba(15, 23, 42, 0.8);
+            --3d-text: #ffffff;
+        }
+
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-main); overflow-x: hidden; }
+
+        /* --- 1. LOGIN OVERLAY --- */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000; transition: opacity 0.5s;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 24px;
+            width: 320px; text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .login-box h1 { margin: 0 0 10px 0; color: #0f172a; font-weight: 800; }
+        .login-box p { color: #64748b; margin-bottom: 20px; font-size: 0.9rem; }
+        .login-box input {
+            width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box;
+            border: 1px solid #cbd5e1; border-radius: 12px; font-size: 16px; text-align: center;
+            font-family: 'Inter', sans-serif; outline: none;
+        }
+        .login-box input:focus { border-color: var(--accent); }
+        .login-box button {
+            width: 100%; padding: 12px; background: var(--accent); color: white;
+            border: none; border-radius: 12px; font-weight: 700; font-size: 16px; 
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .login-box button:hover { opacity: 0.9; }
+
+        /* --- 2. MAIN DASHBOARD --- */
+        #dashboard { 
+            display: none; flex-direction: column; min-height: 100vh; 
+            padding: 20px; box-sizing: border-box; gap: 20px; 
+            padding-bottom: 240px; /* Space for the widget */
+        }
+
+        header { display: flex; justify-content: space-between; align-items: center; height: 50px; }
+        h2.dash-title { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+        
+        .status-badge { 
+            font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; 
+            background: #e2e8f0; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 6px;
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+        .status-badge.online { background: #dcfce7; color: #166534; }
+        .status-badge.online .status-dot { background: #166534; }
+
+        /* Controls Row */
+        .controls-container {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+            background: var(--card-bg); padding: 20px; border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .ctl-group { text-align: center; }
+        .ctl-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; color: var(--text-sub); margin-bottom: 12px; }
+        .btn-row { display: flex; gap: 10px; justify-content: center; }
+        .btn {
+            flex: 1; padding: 10px 0; border: 1px solid #e2e8f0; border-radius: 8px; 
+            background: white; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-on { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
+        .btn-off { background: #fef2f2; color: #dc2626; border-color: #fee2e2; }
+
+        /* Sensors Grid */
+        .sensors-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
+        .card {
+            background: var(--card-bg); border-radius: 16px; padding: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        
+        /* Circular Gauge */
+        .gauge-svg { width: 100px; height: 100px; transform: rotate(-90deg); }
+        .gauge-bg { fill: none; stroke: #f1f5f9; stroke-width: 8; }
+        .gauge-val { 
+            fill: none; stroke-width: 8; stroke-linecap: round; 
+            stroke-dasharray: 251; stroke-dashoffset: 251; transition: stroke-dashoffset 1s ease-out;
+        }
+        .gauge-text { position: absolute; text-align: center; margin-top: -65px; width: 100px; }
+        .val-num { font-size: 1.5rem; font-weight: 800; line-height: 1; display: block; }
+        .val-unit { font-size: 0.75rem; color: var(--text-sub); font-weight: 600; }
+        .card-label { margin-top: 15px; font-size: 0.9rem; font-weight: 600; }
+
+        .stroke-temp { stroke: var(--c-temp); }
+        .stroke-hum { stroke: var(--c-hum); }
+        .stroke-tds { stroke: var(--c-tds); }
+        .stroke-soil { stroke: var(--c-soil); }
+
+        /* --- 3. 3D PREVIEW WIDGET --- */
+        #widget-3d {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 300px; height: 200px;
+            background-color: var(--3d-bg);
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255,255,255,0.1);
+            cursor: pointer;
+            z-index: 1000;
+        }
+        
+        #widget-3d:hover { transform: scale(1.02); border-color: var(--accent); }
+
+        /* Expanded State */
+        #widget-3d.expanded {
+            width: 100vw; height: 100vh;
+            bottom: 0; right: 0; border-radius: 0;
+            transform: none; border: none;
+            z-index: 3000;
+        }
+
+        /* 3D Canvas Container */
+        #canvas-container { width: 100%; height: 100%; }
+
+        /* HUD Overlay inside 3D Widget */
+        .hud-overlay {
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            pointer-events: none; opacity: 0.8;
+        }
+        .hud-header {
+            display: flex; justify-content: space-between;
+            font-size: 10px; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px;
+        }
+        .expand-hint { 
+            background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; 
+            font-size: 9px; color: white; display: block;
+        }
+        #widget-3d.expanded .expand-hint { display: none; }
+        
+        /* Telemetry Bars */
+        .telemetry-row { margin-bottom: 8px; }
+        .t-label { display: flex; justify-content: space-between; font-size: 10px; color: #cbd5e1; margin-bottom: 2px; }
+        .t-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .t-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; position: relative; left: 50%; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h1>AgroBuddy</h1>
+            <p>Enter Raspberry Pi IP Address</p>
+            <input type="text" id="sys-ip" placeholder="e.g. 192.168.1.15" value="10.254.8">
+            <button onclick="initSystem()">Connect System</button>
+            <div id="conn-status" style="margin-top:10px; font-size:12px; color:#ef4444;"></div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard">
+        <header>
+            <h2 class="dash-title">AgroMonitor</h2>
+            <div id="socket-badge" class="status-badge">
+                <div class="status-dot"></div>
+                <span id="socket-text">Sensor Offline</span>
+            </div>
+        </header>
+
+        <div class="controls-container">
+            <div class="ctl-group">
+                <div class="ctl-title">Actuator - 1</div>
+                <div class="btn-row">
+                    <button class="btn btn-off" onclick="sendSocketCmd(1, 'OFF')">START</button>
+                    <button class="btn btn-on" onclick="sendSocketCmd(1, 'ON')">STOP</button>
+                </div>
+            </div>
+            <div class="ctl-group">
+                <div class="ctl-title">Actuator - 2</div>
+                <div class="btn-row">
+                    <button class="btn btn-off" onclick="sendSocketCmd(2, 'OFF')">START</button>
+                    <button class="btn btn-on" onclick="sendSocketCmd(2, 'ON')">STOP</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sensors-grid">
+            <!-- Temp -->
+            <div class="card">
+                <svg class="gauge-svg"><circle cx="50" cy="50" r="40" class="gauge-bg"/><circle cx="50" cy="50" r="40" class="gauge-val stroke-temp" id="g-temp"/></svg>
+                <div class="gauge-text"><span class="val-num" id="v-temp">--</span><span class="val-unit">°C</span></div>
+                <div class="card-label">Temp</div>
+            </div>
+            <!-- Humidity -->
+            <div class="card">
+                <svg class="gauge-svg"><circle cx="50" cy="50" r="40" class="gauge-bg"/><circle cx="50" cy="50" r="40" class="gauge-val stroke-hum" id="g-hum"/></svg>
+                <div class="gauge-text"><span class="val-num" id="v-hum">--</span><span class="val-unit">%</span></div>
+                <div class="card-label">Humidity</div>
+            </div>
+            <!-- TDS -->
+            <div class="card">
+                <svg class="gauge-svg"><circle cx="50" cy="50" r="40" class="gauge-bg"/><circle cx="50" cy="50" r="40" class="gauge-val stroke-tds" id="g-tds"/></svg>
+                <div class="gauge-text"><span class="val-num" id="v-tds">--</span><span class="val-unit">ppm</span></div>
+                <div class="card-label">TDS</div>
+            </div>
+            <!-- Soil -->
+            <div class="card">
+                <svg class="gauge-svg"><circle cx="50" cy="50" r="40" class="gauge-bg"/><circle cx="50" cy="50" r="40" class="gauge-val stroke-soil" id="g-s1"/></svg>
+                <div class="gauge-text"><span class="val-num" id="v-s1">--</span><span class="val-unit">%</span></div>
+                <div class="card-label">Soil Moisture</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3D PREVIEW WIDGET -->
+    <div id="widget-3d" onclick="toggleExpand(this)">
+        <div class="hud-overlay">
+            <div class="hud-header">
+                <span>LIVE TELEMETRY</span>
+                <span class="expand-hint">CLICK TO EXPAND</span>
+            </div>
+            <!-- Mini Bars -->
+            <div class="telemetry-row">
+                <div class="t-label"><span>R</span><span id="txt-r">0°</span></div>
+                <div class="t-bar-bg"><div id="bar-r" class="t-bar-fill"></div></div>
+            </div>
+            <div class="telemetry-row">
+                <div class="t-label"><span>P</span><span id="txt-p">0°</span></div>
+                <div class="t-bar-bg"><div id="bar-p" class="t-bar-fill"></div></div>
+            </div>
+        </div>
+        <div id="canvas-container"></div>
+    </div>
+
+    <script>
+        let SYS_IP = "";
+        let socket = null;
+        let fetchInterval = null;
+        const CIRCUMFERENCE = 2 * Math.PI * 40;
+
+        // --- SYSTEM INIT ---
+        function initSystem() {
+            const ipInput = document.getElementById('sys-ip').value;
+            if(!ipInput) return;
+            SYS_IP = ipInput;
+
+            // UI Transition
+            const login = document.getElementById('login-overlay');
+            login.style.opacity = 0;
+            setTimeout(() => {
+                login.style.display = 'none';
+                document.getElementById('dashboard').style.display = 'flex';
+                
+                // Start both systems
+                initSocketSystem(SYS_IP);
+                init3DSystem(SYS_IP);
+            }, 500);
+        }
+
+        // --- 1. SOCKET.IO (SENSORS) ---
+        function initSocketSystem(ip) {
+            socket = io(`http://${ip}:2500`, { reconnectionAttempts: 3, timeout: 2000 });
+
+            socket.on('connect', () => {
+                const badge = document.getElementById('socket-badge');
+                badge.classList.add('online');
+                document.getElementById('socket-text').innerText = "Sensors Online";
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('socket-badge').classList.remove('online');
+                document.getElementById('socket-text').innerText = "Sensors Offline";
+            });
+
+            socket.on('sensor_update', (data) => {
+                updateGauge('g-temp', 'v-temp', data.temperature, 50);
+                updateGauge('g-hum', 'v-hum', data.humidity, 100);
+                updateGauge('g-tds', 'v-tds', data.tds, 500);
+                updateGauge('g-s1', 'v-s1', data.soil1, 100);
+            });
+        }
+
+        function sendSocketCmd(id, action) {
+            if(socket && socket.connected) socket.emit('control_servo', { id, action });
+        }
+
+        function updateGauge(circleId, textId, value, maxVal) {
+            const circle = document.getElementById(circleId);
+            document.getElementById(textId).innerText = value;
+            let pct = Math.min(100, Math.max(0, (value / maxVal) * 100));
+            circle.style.strokeDashoffset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+        }
+
+        // --- 2. THREE.JS & TELEMETRY (3D) ---
+        let scene, camera, renderer, carGroup;
+        let targetR=0, targetP=0, targetY=0;
+        let currR=0, currP=0, currY=0;
+
+        function init3DSystem(ip) {
+            // Scene Setup
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a); // Matches widget bg
+
+            camera = new THREE.PerspectiveCamera(45, container.offsetWidth / container.offsetHeight, 0.1, 100);
+            camera.position.set(4, 3, 5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(container.offsetWidth, container.offsetHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lights & Objects
+            const grid = new THREE.GridHelper(20, 20, 0x334155, 0x1e293b);
+            scene.add(grid);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+
+            // Simple Car Model
+            carGroup = new THREE.Group();
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 1), new THREE.MeshPhysicalMaterial({ color: 0x10b981 }));
+            chassis.position.y = 0.5;
+            carGroup.add(chassis);
+            
+            const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            wheelGeo.rotateX(Math.PI/2);
+            [[-0.8, 0.6], [0.8, 0.6], [-0.8, -0.6], [0.8, -0.6]].forEach(pos => {
+                const w = new THREE.Mesh(wheelGeo, new THREE.MeshStandardMaterial({ color: 0x334155 }));
+                w.position.set(pos[0], 0.3, pos[1]);
+                carGroup.add(w);
+            });
+            scene.add(carGroup);
+
+            // Animation Loop
+            animate();
+
+            // Start Polling API
+            if(fetchInterval) clearInterval(fetchInterval);
+            fetchInterval = setInterval(() => fetchTelemetry(ip), 50);
+
+            // Resize Observer for Expand/Collapse
+            new ResizeObserver(() => {
+                const w = container.offsetWidth;
+                const h = container.offsetHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            }).observe(container);
+        }
+
+        async function fetchTelemetry(ip) {
+            try {
+                const res = await fetch(`http://${ip}:2000/data`);
+                if(res.ok) {
+                    const data = await res.json();
+                    // Update targets
+                    targetR = THREE.MathUtils.degToRad(-data.roll);
+                    targetP = THREE.MathUtils.degToRad(-data.pitch);
+                    targetY = THREE.MathUtils.degToRad(-data.yaw);
+                    
+                    updateHUD(data.roll, data.pitch);
+                }
+            } catch(e) { /* ignore offline errors */ }
+        }
+
+        function updateHUD(r, p) {
+            document.getElementById('txt-r').innerText = r.toFixed(0) + "°";
+            document.getElementById('txt-p').innerText = p.toFixed(0) + "°";
+            
+            // Bar Logic (-45 to 45 range mapped to width)
+            const rPct = Math.max(-50, Math.min(50, (r/45)*50));
+            const pPct = Math.max(-50, Math.min(50, (p/45)*50));
+            
+            const rb = document.getElementById('bar-r');
+            rb.style.left = (r >= 0) ? "50%" : (50 + rPct) + "%";
+            rb.style.width = Math.abs(rPct) + "%";
+
+            const pb = document.getElementById('bar-p');
+            pb.style.left = (p >= 0) ? "50%" : (50 + pPct) + "%";
+            pb.style.width = Math.abs(pPct) + "%";
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            // Smooth interpolation
+            currR += (targetR - currR) * 0.1;
+            currP += (targetP - currP) * 0.1;
+            currY += (targetY - currY) * 0.1;
+            
+            carGroup.rotation.set(currP, currY, currR, 'YXZ');
+            renderer.render(scene, camera);
+        }
+
+        function toggleExpand(el) {
+            el.classList.toggle('expanded');
+        }
+    </script>
+</body>
+</html>
