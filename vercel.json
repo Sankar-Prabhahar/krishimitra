@@ -3,15 +3,15 @@
   "rewrites": [
     {
       "source": "/api/tts",
-      "destination": "https://krishi-final.onrender.com/api/tts"
+      "destination": "https://krishimitra-1-m3k9.onrender.com/api/tts"
     },
     {
       "source": "/audio/:path*",
-      "destination": "https://krishi-final.onrender.com/audio/:path*"
+      "destination": "https://krishimitra-1-m3k9.onrender.com/audio/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://krishi-final.onrender.com/api/:path*"
+      "destination": "https://krishimitra-1-m3k9.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
@@ -19,3 +19,4 @@
     }
   ]
 }
+
