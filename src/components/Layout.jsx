@@ -7,12 +7,20 @@ import { useAuth } from '../context/AuthContext';
 
 const Layout = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [chatBotOpen, setChatBotOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language, setLanguage, languages } = useLanguage();
   const { user, isAuthenticated, logout } = useAuth();
   
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  // When chatbot opens on mobile, close the nav menu
+  const handleChatBotOpen = () => {
+    setChatBotOpen(true);
+    setIsMenuOpen(false);
+  };
+  const handleChatBotClose = () => setChatBotOpen(false);
   
   const handleLogout = () => {
     logout();
@@ -117,8 +125,24 @@ const Layout = () => {
             )}
           </div>
 
-          <button className="mobile-menu-btn" onClick={toggleMenu}>
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {/* Mobile: hamburger OR X-to-close-chatbot */}
+          <button
+            className="mobile-menu-btn"
+            onClick={() => {
+              if (chatBotOpen) {
+                handleChatBotClose();
+              } else {
+                toggleMenu();
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (chatBotOpen) {
+                e.preventDefault();
+                handleChatBotClose();
+              }
+            }}
+          >
+            {(isMenuOpen || chatBotOpen) ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </header>
@@ -195,7 +219,11 @@ const Layout = () => {
         <p>{t('footer_text')}</p>
       </footer>
 
-      <ChatBot />
+      <ChatBot
+        externalOpen={chatBotOpen}
+        onOpen={handleChatBotOpen}
+        onClose={handleChatBotClose}
+      />
     </div>
   );
 };

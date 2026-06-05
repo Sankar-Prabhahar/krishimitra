@@ -24,3 +24,8 @@ yarn-debug.log*
 
 # Local config
 public/env-config.js
+
+# Audio cache
+public/audio/tts_*.wav
+!public/audio/tts_greeting.wav
+

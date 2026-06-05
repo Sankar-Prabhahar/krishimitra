@@ -3,8 +3,8 @@ import { MessageSquare, X, Send, Mic, MicOff, Bot, User, Volume2, VolumeX, StopC
 import { useLanguage } from '../context/LanguageContext';
 import { generateAIResponse } from '../services/aiService';
  
-const ChatBot = () => {
-  const [isOpen, setIsOpen]       = useState(false);
+const ChatBot = ({ externalOpen, onOpen, onClose }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +26,11 @@ const ChatBot = () => {
   // API configuration
   const WEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY || "1c0ff9c24c32fb28e6644ec4110fd944";
   const VOICE_RSS_KEY = import.meta.env.VITE_VOICE_RSS_KEY;
+
+  // Sync with external open state (controlled by Layout's hamburger)
+  useEffect(() => {
+    if (externalOpen !== undefined) setIsOpen(externalOpen);
+  }, [externalOpen]);
  
   // ============================================================
   // TTS
@@ -253,6 +258,14 @@ const ChatBot = () => {
   const formatTime = (date) =>
     new Date(date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
  
+  // Close handler — shared by button click, touch, and external (navbar X)
+  const handleClose = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    setIsOpen(false);
+    stopSpeaking();
+    if (onClose) onClose(); // notify Layout → hamburger reverts
+  };
+
   // ============================================================
   // Render
   // ============================================================
@@ -284,7 +297,11 @@ const ChatBot = () => {
             >
               {languages.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
             </select>
-            <button className="chatbot-exit-btn" onClick={() => { setIsOpen(false); stopSpeaking(); }}>
+            <button
+              className="chatbot-exit-btn"
+              onClick={handleClose}
+              onTouchEnd={handleClose}
+            >
               <span>Exit</span>
               <X size={16} />
             </button>
@@ -358,7 +375,13 @@ const ChatBot = () => {
         </div>
       </div>
  
-      <button className={`chatbot-fab ${isOpen ? 'hidden' : ''}`} onClick={() => setIsOpen(true)}>
+      <button
+        className={`chatbot-fab ${isOpen ? 'hidden' : ''}`}
+        onClick={() => {
+          setIsOpen(true);
+          if (onOpen) onOpen(); // notify Layout → hamburger becomes X
+        }}
+      >
         <MessageSquare size={24} />
       </button>
     </>
